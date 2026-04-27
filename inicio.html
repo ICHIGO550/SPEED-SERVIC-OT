@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Servic - Órdenes de Trabajo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Abrí esta página por http(s) (Live Server), no file://, para que el navegador permita llamar a Supabase. -->
+    <style>
+        /* Tipografía Arial y pesos delgados */
+        body { 
+            font-family: Arial, Helvetica, sans-serif; 
+            background-color: #fcfcfc; 
+            color: #0f172a; 
+            font-size: 24px;
+            font-weight: 500;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .font-bold { font-weight: 600; }
+        .font-extrabold { font-weight: 700; }
+        
+        /* Sidebar */
+        .sidebar-item { color: #334155; font-size: 13px; transition: all 0.2s; border-radius: 8px; }
+        .sidebar-item:hover { background-color: #ffffff; color: #0f172a; }
+        .sidebar-item.active { background-color: #ffffff; color: #0f172a; font-weight: 600; border: 1px solid #e2e8f0; }
+
+        /* Píldoras de Filtro */
+        .filter-btn {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 400;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #334155;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-bottom: 4px;
+        }
+        .filter-btn.active {
+            background: #111827;
+            color: white;
+            border-color: #111827;
+            font-weight: 600;
+        }
+
+        /* Estados de Órdenes */
+        .badge {
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 110px;
+        }
+        .badge-watchlist { background-color: #9333ea; color: white; }
+        .badge-ingresada { background-color: #14b8a6; color: white; }
+        .badge-diseno { background-color: #f59e0b; color: white; }
+        .badge-corte { background-color: #f97316; color: white; }
+        .badge-entregado { background-color: #3b82f6; color: white; }
+        .badge-cancelada { background-color: #ef4444; color: white; }
+        .badge-pagada { background-color: #dcfce7; color: #166534; }
+        .badge-parcial { background-color: #fef3c7; color: #92400e; }
+        .badge-pendiente { background-color: #fee2e2; color: #991b1b; }
+        .badge-credito { background-color: #dbeafe; color: #1e40af; }
+
+        /* Estilo de Tabla */
+        .table-header th {
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #334155;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .table-row td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+            font-weight: 400;
+        }
+        .table-row:hover { background-color: #f8fafc; }
+
+        .jobboard-table th,
+        .jobboard-table td {
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+        .jobboard-table th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .jobboard-table td {
+            background-color: white;
+            color: #334155;
+            font-size: 13px;
+            min-height: 50px;
+            vertical-align: middle;
+        }
+        /* Celda de estado: el color rellena casi todo el rectángulo */
+        .jobboard-table td.jobboard-status-cell {
+            padding: 4px 6px;
+            vertical-align: middle;
+            width: 1%;
+            min-width: 118px;
+            max-width: 132px;
+        }
+        .jobboard-chip {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 46px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            padding: 8px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            line-height: 1.15;
+            text-align: center;
+        }
+        .jobboard-chip.purple { background-color: #7c3aed; }
+        .jobboard-chip.green { background-color: #14b8a6; }
+        .jobboard-chip.amber { background-color: #f59e0b; }
+        .jobboard-chip.orange { background-color: #f97316; }
+        .jobboard-chip.blue { background-color: #3b82f6; }
+
+        .detail-row { display: none; background-color: #fcfcfc; }
+        .detail-row.open { display: table-row; }
+        
+        .product-card-container {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 6px;
+            margin-left: 0;
+            display: grid;
+            grid-template-columns: 300px 70px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .orders-detail-products-wrap {
+            max-width: 80rem;
+            margin-left: 2.5rem;
+            margin-right: auto;
+            padding-left: 1.25rem;
+            padding-right: 0.5rem;
+        }
+
+        .rotate-90 { transform: rotate(90deg); }
+        .transition-transform { transition: transform 0.2s ease; }
+
+        /* Custom Modal Layout */
+        .modal-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            letter-spacing: 0.05em;
+        }
+        .modal-input {
+            width: 100%;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 13px;
+            color: #0f172a;
+            transition: all 0.2s;
+        }
+        .modal-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Dropdown Menu Styles */
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            width: 160px;
+            z-index: 100;
+            display: none;
+            padding: 4px;
+        }
+        .dropdown-menu.show { display: block; }
+        .dropdown-item {
+            padding: 6px 10px;
+            font-size: 12.5px;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .dropdown-item:hover { background-color: #f1f5f9; color: #1e293b; }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #e2e8f0;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #111827; }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        /* Dropdown Icon Styles for Status Select in Modal */
+        .status-select-container {
+            position: relative;
+        }
+        .status-dot {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* Popover de detalle junto a la tarjeta (bolsa de trabajo) */
+        #modal-order-summary {
+            position: fixed;
+            z-index: 100;
+            width: min(300px, calc(100vw - 24px));
+            max-height: min(420px, calc(100vh - 24px));
+            overflow: auto;
+            box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.18), 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+            transform: none;
+        }
+        #modal-order-summary.hidden { display: none !important; }
+
+        /* Popover lista "...N" órdenes (misma idea que el detalle; z-index bajo el detalle) */
+        #modal-jobboard-orders {
+            position: fixed;
+            z-index: 99;
+            width: min(320px, calc(100vw - 24px));
+            max-height: min(440px, calc(100vh - 24px));
+            overflow: hidden;
+            box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.18), 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+        }
+        #modal-jobboard-orders.hidden { display: none !important; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar Izquierdo -->
+    <aside class="w-40 border-r border-slate-200 flex flex-col bg-slate-100 shrink-0">
+        <div class="p-4 flex flex-col items-center gap-0 mb-6">
+            <img src="https://i.ibb.co/mVKkMx05/speed-servvv-removebg-preview.png" alt="Logo Speed Servic" class="w-24 h-auto drop-shadow-sm">
+            <div class="overflow-hidden text-center -mt-4">
+                <h1 class="text-base font-bold tracking-tight truncate">Speed Servic</h1>
+                <p class="text-[8px] text-black font-medium uppercase tracking-wider truncate">Servicios Especializados</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 px-3 space-y-1">
+            <div class="sidebar-item p-2.5 flex items-center gap-3 cursor-pointer" onclick="showSection('registro')">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span class="text-[13px]">Registro</span>
+            </div>
+            <div class="sidebar-item active p-2.5 flex items-center gap-3 cursor-pointer" onclick="showSection('orders')">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                <span class="text-[13px]">Órdenes</span>
+            </div>
+            <div class="sidebar-item p-2.5 flex items-center gap-3 cursor-pointer" onclick="showSection('jobboard')">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                <span class="text-[13px]">Bolsa de Trabajo</span>
+            </div>
+        </nav>
+
+        <div class="px-3 pb-4 border-t border-slate-200 pt-4">
+            <div class="sidebar-item p-2.5 flex items-center gap-3 cursor-pointer text-red-500 hover:bg-red-50 transition-colors" onclick="logout()">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                <span class="text-[13px] font-semibold">Salir</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="px-4 pt-6 pb-2 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Órdenes de Trabajo</h1>
+                <p class="text-[14px] text-slate-500 font-normal">Gestión de producción y flujo comercial.</p>
+            </div>
+            <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-base font-semibold shadow-lg shadow-blue-100 transition-all">
+                + Nueva OT
+            </button>
+        </header>
+
+        <div id="registro-section" class="flex-1 flex flex-col overflow-hidden" style="display: none;">
+            <div class="flex-1 flex overflow-hidden bg-slate-50/50 border-t border-slate-100">
+                <!-- Lado Izquierdo: Lista de Clientes -->
+                <div class="flex-1 flex flex-col border-r border-slate-200 overflow-hidden">
+                    <div class="p-6 overflow-auto">
+                        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible mb-12">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-700 font-bold">
+                                    <tr>
+                                        <th class="px-4 py-3 w-12 border-b border-slate-200">Nº</th>
+                                        <th class="px-4 py-3 border-b border-slate-200">Empresa / Nombre</th>
+                                        <th class="px-4 py-3 border-b border-slate-200">RUT</th>
+                                        <th class="px-4 py-3 border-b border-slate-200">Contacto</th>
+                                        <th class="px-4 py-3 border-b border-slate-200">Número de contacto</th>
+                                        <th class="px-4 py-3 border-b border-slate-200 w-12 text-center"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clients-table-body" class="text-[13px] divide-y divide-slate-100 text-slate-600">
+                                    <!-- Contenido dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lado Derecho: Registro Nuevo -->
+                <div class="w-80 bg-white p-6 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.02)] overflow-auto shrink-0">
+                    <div class="mb-6">
+                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-widest">Nuevo Registro</h3>
+                        <div class="h-1 w-8 bg-blue-600 mt-1 rounded-full"></div>
+                    </div>
+
+                    <form id="form-client" class="space-y-5">
+                        <div class="space-y-1.5"><label class="modal-label">Nombre de la Empresa</label><input type="text" id="client-company" class="modal-input nav-field" placeholder="Nombre comercial" required></div>
+                        <div class="space-y-1.5"><label class="modal-label">RUT</label><input type="text" id="client-rut" class="modal-input nav-field" placeholder="12.345.678-9"></div>
+                        <div class="space-y-1.5"><label class="modal-label">Persona de Contacto</label><input type="text" id="client-name" class="modal-input nav-field" placeholder="Nombre completo" required></div>
+                        <div class="space-y-1.5"><label class="modal-label">Número de Contacto</label><input type="text" id="client-phone" class="modal-input nav-field" placeholder="+56 9..." required></div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-widest shadow-md shadow-blue-100 transition-all mt-4">Guardar Cliente</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="orders-section" class="flex-1 flex flex-col overflow-hidden">
+            <div class="px-4 mt-4 space-y-4">
+                <div class="flex flex-wrap gap-2 items-center border-b border-slate-100 pb-4" id="filter-container">
+                    <button class="filter-btn active" onclick="setFilter('all', this)">Todas las órdenes</button>
+                    <button class="filter-btn" onclick="setFilter('normal', this)">Normales</button>
+                    <button class="filter-btn" onclick="setFilter('entregado', this)">Completadas</button>
+                    <button class="filter-btn" onclick="setFilter('cancelada', this)">Canceladas</button>
+                    <button class="filter-btn" onclick="setFilter('watchlist', this)">Seguimiento</button>
+                    <button class="filter-btn" onclick="setFilter('pendiente', this)">Pago pendiente</button>
+                    <button class="filter-btn" onclick="setFilter('parcial', this)">Pago parcial</button>
+                    <button class="filter-btn" onclick="setFilter('pagada', this)">Pagadas</button>
+                    <button class="filter-btn" onclick="setFilter('credito', this)">Crédito al Cliente</button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="relative w-64">
+                        <input type="text" id="search-input" oninput="renderTable()" placeholder="Buscar orden o cliente..." class="w-full pl-3 pr-10 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-500 shadow-sm font-normal">
+                    </div>
+                    <div class="text-[12px] text-slate-400 font-medium">
+                        Mostrando <span id="count-label" class="text-slate-900 font-semibold">0</span> resultados
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto px-4 mt-4">
+                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible mb-8">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="table-header bg-slate-50/50">
+                            <tr>
+                                <th class="w-10"></th>
+                                <th class="w-28">Orden</th>
+                                <th class="w-36">Cliente</th>
+                                <th class="text-center">Estado</th>
+                                <th>Entrega</th>
+                                <th class="text-center">Pago</th>
+                                <th>Productos</th>
+                                <th class="w-24">Venta</th>
+                                <th class="w-12 text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body" class="text-[13px] text-slate-600">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="jobboard-section" class="flex-1 flex flex-col overflow-hidden" style="display: none;">
+            <div class="flex-1 p-4">
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="jobboard-table min-w-[1040px] w-full border-collapse">
+                            <thead>
+                                <tr id="jobboard-thead-row"></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="jobboard-chip purple">Lista de seguimiento</span></td>
+                                    <td><span class="inline-flex items-center justify-center h-8 px-3 rounded border border-slate-200 bg-white text-slate-700 font-semibold">OT-001</span></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="jobboard-chip green">INGRESADA</span></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="jobboard-chip amber">EN DISEÑO</span></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="jobboard-chip orange">EN CORTE</span></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="jobboard-chip blue">RECEPCIÓN DE ENTREGADO</span></td>
+                                    <td><span class="inline-flex items-center justify-center h-8 px-3 rounded border border-slate-200 bg-white text-slate-700 font-semibold">OT-01000</span></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Formulario Nueva OT (Simplificado fuentes) -->
+    <div id="modal-order" class="fixed inset-0 bg-slate-900/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto font-normal">
+            <div class="p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-xl tracking-tight">Registro de Nueva Orden</h3>
+                    <p class="text-[12px] text-black font-medium uppercase tracking-widest mt-0.5">Formulario de producción</p>
+                    <p id="ot-number-display" class="text-sm text-slate-600 mt-1"></p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            
+            <form id="form-ot" class="p-8">
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div>
+                            <label class="modal-label">COT NRO</label>
+                            <input type="text" id="ot-cot" class="modal-input nav-field" placeholder="Ej: 550">
+                        </div>
+                        <div></div>
+                        <div>
+                            <label class="modal-label">Fecha de Entrega</label>
+                            <input type="date" id="ot-delivery" class="modal-input nav-field" required>
+                        </div>
+                        <div>
+                            <label class="modal-label">Hora de Entrega</label>
+                            <input type="time" id="ot-delivery-time" class="modal-input nav-field">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="relative">
+                            <label class="modal-label">Cliente / Empresa</label>
+                            <input type="text" id="ot-client" oninput="showClientSuggestions(this.value)" class="modal-input nav-field" placeholder="Nombre completo del cliente" required autocomplete="off">
+                            <div id="client-suggestions" class="absolute left-0 right-0 top-full bg-white border border-slate-200 rounded-lg shadow-xl z-[60] hidden overflow-hidden mt-1">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="modal-label">Estado de Pago</label>
+                            <select id="ot-pay-status" class="modal-input cursor-pointer nav-field" required>
+                                <option value="">Seleccione...</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="parcial">Pago Parcial</option>
+                                <option value="pagada">Pagada</option>
+                                <option value="credito">Crédito al Cliente</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="modal-label">Contacto</label>
+                            <input type="text" id="ot-contact" class="modal-input nav-field" placeholder="Nombre del contacto">
+                        </div>
+                        <div>
+                            <label class="modal-label">CEL</label>
+                            <input type="text" id="ot-cel" class="modal-input nav-field" placeholder="Número de teléfono celular">
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <label class="modal-label !mb-0">Lista de Productos</label>
+                            <button type="button" onclick="addProductRow()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                                Añadir Producto
+                            </button>
+                        </div>
+                        <div id="products-container" class="space-y-3"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="modal-label">Vendedor / Responsable</label>
+                            <input type="text" id="ot-seller" list="staff-list" class="modal-input nav-field" placeholder="Escriba nombre o responsable" required autocomplete="name">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-10 pt-6 border-t flex justify-end gap-4">
+                    <button type="button" onclick="closeModal()" class="px-5 py-2.5 text-[11px] font-bold text-black uppercase">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg text-base font-semibold hover:bg-blue-700 transition-colors">Guardar Orden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Actualizar Orden (Ajustado: más pequeño, fuentes Arial chicas) -->
+    <div id="modal-update-status" class="fixed inset-0 bg-slate-900/40 hidden z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-[360px] overflow-hidden font-normal animate-in zoom-in-95 duration-200">
+            <div class="p-4 flex justify-between items-start border-b border-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base" id="update-modal-title">Actualizar Orden</h3>
+                    <p class="text-[11px] text-black mt-0.5">Gestión de estado y pagos.</p>
+                </div>
+                <button onclick="closeUpdateModal()" class="text-slate-300 hover:text-slate-600 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="modal-label">Fecha de Entrega</label>
+                    <div class="relative">
+                        <input type="date" id="upd-date" class="modal-input pl-8">
+                        <div class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="modal-label">Hora de Entrega</label>
+                    <input type="time" id="upd-delivery-time" class="modal-input">
+                </div>
+
+                <div class="p-3 border border-slate-100 rounded-lg flex justify-between items-center bg-slate-50/30">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-slate-700">Seguimiento Especial</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="upd-watchlist">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="p-5 pt-0 flex gap-2">
+                <button onclick="closeUpdateModal()" class="flex-1 py-2 border border-slate-200 rounded-lg font-bold text-slate-400 text-[11px] hover:bg-slate-50 transition-colors uppercase">Cancelar</button>
+                <button onclick="saveStatusUpdate()" class="flex-1 py-2 bg-slate-900 hover:bg-black text-white rounded-lg font-bold text-[11px] transition-all uppercase">Actualizar Orden</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Cambiar Estado (Específico para clics en la insignia de estado) -->
+    <div id="modal-change-status" class="fixed inset-0 bg-slate-900/40 hidden z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-[340px] overflow-hidden font-normal animate-in zoom-in-95 duration-200">
+            <div class="p-4 border-b border-slate-50 bg-slate-50/50">
+                <h3 class="font-bold text-slate-800 text-base">Cambiar Estado</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label id="change-responsible-label" class="modal-label">Responsable</label>
+                    <input type="text" id="change-responsible" list="staff-list" class="modal-input" placeholder="Nombre de quien realiza el cambio" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); saveStatusChange(); }">
+                </div>
+            </div>
+            <div class="p-5 pt-0 flex gap-2">
+                <button onclick="closeChangeStatusModal()" class="flex-1 py-2 border border-slate-200 rounded-lg font-bold text-slate-400 text-[11px] uppercase hover:bg-slate-50 transition-colors">Cancelar</button>
+                <button onclick="saveStatusChange()" class="flex-1 py-2 bg-slate-900 hover:bg-black text-white rounded-lg font-bold text-[11px] uppercase transition-all">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Historial de Orden -->
+    <div id="modal-history" class="fixed inset-0 bg-slate-900/40 hidden z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-[360px] overflow-hidden font-normal animate-in zoom-in-95 duration-200">
+            <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-base">Historial de la Orden</h3>
+                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <div class="p-6 max-h-[400px] overflow-y-auto">
+                <div id="history-list" class="space-y-0">
+                    <!-- Registros de historial aquí -->
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-50 text-right">
+                <button onclick="closeHistoryModal()" class="w-full py-2 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold uppercase transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver detalles de orden (solo lectura) -->
+    <div id="modal-order-details" class="fixed inset-0 bg-slate-900/45 hidden z-[72] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[min(92vh,720px)] overflow-hidden flex flex-col font-normal border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-start gap-3 bg-gradient-to-r from-slate-50 to-white shrink-0">
+                <div class="min-w-0">
+                    <p class="text-[11px] font-semibold text-black uppercase tracking-wider">Orden de trabajo</p>
+                    <h3 class="font-bold text-slate-900 text-xl tracking-tight truncate" id="order-details-heading">OT-0000</h3>
+                    <p class="text-xs text-slate-500 mt-0.5" id="order-details-sub"></p>
+                </div>
+                <button type="button" onclick="closeOrderDetailsModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors shrink-0" aria-label="Cerrar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="overflow-y-auto flex-1 px-5 py-4 space-y-5 text-sm text-slate-700" id="order-details-scroll">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3" id="order-details-grid"></div>
+                <div>
+                    <p class="text-[10px] font-bold text-black uppercase tracking-wider mb-2">Productos</p>
+                    <div class="rounded-lg border border-slate-200 overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wide text-[10px]">
+                                    <th class="px-3 py-2 w-8">#</th>
+                                    <th class="px-3 py-2 w-14 text-center">Cant.</th>
+                                    <th class="px-3 py-2">Medidas</th>
+                                    <th class="px-3 py-2">Foto</th>
+                                    <th class="px-3 py-2">Instrucciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="order-details-products-tbody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                    <div id="order-details-product-notes" class="mt-3 space-y-2"></div>
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/80 shrink-0">
+                <button type="button" onclick="closeOrderDetailsModal()" class="w-full py-2.5 rounded-lg bg-slate-900 text-white text-xs font-bold uppercase tracking-wide hover:bg-black transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmación Eliminar Orden -->
+    <div id="modal-delete-confirm" class="fixed inset-0 bg-slate-900/40 hidden z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-[320px] overflow-hidden font-normal animate-in zoom-in-95 duration-200">
+            <div class="p-4 flex justify-between items-start border-b border-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm">Eliminar Orden</h3>
+                    <p class="text-[10px] text-black mt-0.5">Esta acción no se puede deshacer</p>
+                </div>
+                <button onclick="closeDeleteModal()" class="text-slate-300 hover:text-slate-600 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-slate-900">¿Eliminar orden <span id="delete-order-id" class="font-semibold text-red-600"></span>?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 pt-0 flex gap-2">
+                <button onclick="closeDeleteModal()" class="flex-1 py-2 border border-slate-200 rounded-lg font-semibold text-slate-600 text-xs hover:bg-slate-50 transition-colors">Cancelar</button>
+                <button onclick="confirmDeleteOrder()" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-xs transition-colors">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popover lista de órdenes (botón ...N al costado, sin pantalla completa) -->
+    <div id="modal-jobboard-orders" class="hidden flex flex-col bg-white rounded-xl font-normal border border-slate-200">
+            <div class="p-3 flex justify-between items-start border-b border-slate-100 shrink-0 bg-slate-50/50 gap-2">
+                <div class="min-w-0">
+                    <h3 class="font-bold text-slate-800 text-xs" id="jobboard-modal-title">Órdenes</h3>
+                    <p class="text-[9px] text-black mt-0.5 leading-tight" id="jobboard-modal-subtitle"></p>
+                </div>
+                <button type="button" onclick="event.stopPropagation(); closeJobboardModal()" class="text-slate-300 hover:text-slate-600 transition-colors shrink-0 p-0.5 rounded" aria-label="Cerrar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-2 overflow-y-auto flex-1 min-h-0" style="max-height: min(340px, calc(100vh - 140px));">
+                <div id="jobboard-orders-list" class="space-y-1.5"></div>
+            </div>
+    </div>
+
+    <!-- Popover resumen de orden (al costado de la tarjeta en bolsa de trabajo; sin pantalla completa) -->
+    <div id="modal-order-summary" class="hidden bg-white rounded-xl font-normal border border-slate-200">
+            <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 gap-2 sticky top-0 z-10">
+                <h3 class="font-bold text-slate-800 text-xs truncate min-w-0 flex-1" id="summary-title">OT-XXXX</h3>
+                <div class="flex items-center gap-0.5 shrink-0">
+                    <button type="button" onclick="event.stopPropagation(); openOrderDetailsFromJobboardSummary();" class="p-1 text-slate-400 hover:text-blue-600 rounded transition-colors" title="Ver detalles completos" aria-label="Ver detalles completos">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); closeSummaryModal()" class="p-1 text-slate-300 hover:text-slate-600 transition-colors rounded" aria-label="Cerrar">✕</button>
+                </div>
+            </div>
+            <div class="p-4 space-y-3 pb-4">
+                <div>
+                    <label class="modal-label">Estado</label>
+                    <div id="summary-status-badge" class="mt-1"></div>
+                </div>
+                <div>
+                    <label class="modal-label">Cliente</label>
+                    <p id="summary-client" class="text-xs font-semibold text-slate-800 mt-1 truncate"></p>
+                </div>
+                <div>
+                    <label class="modal-label">Fecha de venta</label>
+                    <p id="summary-created" class="text-xs text-slate-700 font-medium mt-1"></p>
+                </div>
+                <div class="rounded-lg border border-sky-100/80 bg-sky-50/90 px-3 py-2.5">
+                    <label class="modal-label !mb-0 text-sky-700/90">Fecha de entrega</label>
+                    <p id="summary-delivery-line" class="text-sm font-semibold text-sky-900 mt-1"></p>
+                </div>
+            </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://frdxweqgojwsusexqkyg.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyZHh3ZXFnb2p3c3VzZXhxa3lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTcxNTQsImV4cCI6MjA5MTkzMzE1NH0.pPz8ZTumbqXbO_Agwmy3O_rIICn5HJyCtCy-Xz7DdnQ';
+
+        const userRole = sessionStorage.getItem('userRole');
+        if (!userRole) window.location.href = 'index.html';
+
+        let orders = [];
+        let clients = [];
+        let staff = [];
+
+        function supabaseHeaders(extra) {
+            return Object.assign({
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json'
+            }, extra || {});
+        }
+
+        async function loadFromSupabase() {
+            try {
+                // 1. Carga inmediata desde el caché local (Velocidad instantánea)
+                const cachedOrders = localStorage.getItem('runflow_orders');
+                const cachedClients = localStorage.getItem('runflow_clients');
+
+                if (cachedOrders) orders = JSON.parse(cachedOrders);
+                if (cachedClients) clients = JSON.parse(cachedClients);
+
+                // Renderizado inicial con datos locales
+                renderTable();
+                renderClients();
+
+                // Cargar Órdenes
+                const r = await fetch(SUPABASE_URL + '/rest/v1/orders?select=*', { headers: supabaseHeaders() });
+                if (!r.ok) throw new Error(await r.text());
+                const dbOrders = await r.json();
+                
+                if (dbOrders.length > 0) {
+                    orders = dbOrders.map(o => ({
+                        id: o.id,
+                        client: o.cliente,
+                        status: o.status,
+                        date: o.fecha_entrega,
+                        ...(o.detalles || {})
+                    })).sort((a, b) => b.id.localeCompare(a.id));
+                } else {
+                    orders = [];
+                }
+                
+                // Guardar en caché local para la próxima visita
+                localStorage.setItem('runflow_orders', JSON.stringify(orders));
+
+                // Cargar Clientes
+                const rc = await fetch(SUPABASE_URL + '/rest/v1/clients?select=*', { headers: supabaseHeaders() });
+                if (rc.ok) {
+                    const dbClients = await rc.json();
+                    clients = dbClients.map(c => ({
+                        company: c.nombre,
+                        ...(c.detalles || {})
+                    }));
+                }
+                
+                localStorage.setItem('runflow_clients', JSON.stringify(clients));
+                
+                // Renderizado final con datos de la nube
+                renderTable();
+                renderClients();
+                renderJobboard();
+
+            } catch (e) {
+                console.error('Supabase carga:', e);
+            }
+        }
+
+        async function loadStaff() {
+            try {
+                const r = await fetch(SUPABASE_URL + '/rest/v1/staff?select=nombre&activo=eq.true', { headers: supabaseHeaders() });
+                if (r.ok) {
+                    staff = await r.json();
+                    const dl = document.getElementById('staff-list');
+                    if (dl) {
+                        dl.innerHTML = staff.map(s => `<option value="${escapeHtml(s.nombre)}">`).join('');
+                    }
+                }
+            } catch (e) { console.error("Error al cargar staff:", e); }
+        }
+
+        async function persistToSupabase(orderObj) {
+            const itemsToSave = (orderObj ? [orderObj] : orders).map(o => ({
+                id: o.id,
+                cliente: o.client,
+                status: o.status,
+                fecha_entrega: o.date || null, // Importante: convertir "" en null
+                detalles: {
+                    ref: o.ref || '',
+                    contact: o.contact || '',
+                    cel: o.cel || '',
+                    seller: o.seller || '',
+                    createdDate: o.createdDate || '',
+                    pay: o.pay || 'pendiente',
+                    watchlist: !!o.watchlist,
+                    deliveryTime: o.deliveryTime || '',
+                    amountPaid: o.amountPaid || '0,00',
+                    lastResponsible: o.lastResponsible || '',
+                    history: o.history || [],
+                    products: o.products || []
+                }
+            }));
+
+            // Guardar localmente siempre antes de intentar subir a la nube (Optimismo)
+            localStorage.setItem('runflow_orders', JSON.stringify(orders));
+
+            const res = await fetch(SUPABASE_URL + '/rest/v1/orders?on_conflict=id', {
+                method: 'POST',
+                headers: supabaseHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
+                body: JSON.stringify(itemsToSave)
+            });
+            if (!res.ok) {
+                const err = await res.text();
+                console.error("Error de Supabase:", err);
+                throw new Error(err);
+            }
+        }
+
+        async function persistClientsToSupabase(clientObj) {
+            const items = (clientObj ? [clientObj] : clients).map(c => ({
+                nombre: c.company,
+                detalles: {
+                    contact: c.contact || '',
+                    phone: c.phone || '',
+                    rut: c.rut || ''
+                }
+            }));
+
+            // Actualizar caché local de clientes
+            localStorage.setItem('runflow_clients', JSON.stringify(clients));
+            
+            const res = await fetch(SUPABASE_URL + '/rest/v1/clients?on_conflict=nombre', {
+                method: 'POST',
+                headers: supabaseHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
+                body: JSON.stringify(items)
+            });
+            if (!res.ok) console.error("Error al guardar cliente:", await res.text());
+        }
+
+        // Variable temporal para modal de bolsa de trabajo
+        let currentJobboardModalData = null;
+
+        let summaryAnchorEl = null;
+        let summaryOutsideClose = null;
+        let summaryScrollCleanup = null;
+        let summaryEscapeHandler = null;
+
+        let jobboardAnchorEl = null;
+        let jobboardOutsideClose = null;
+        let jobboardScrollCleanup = null;
+        let jobboardEscapeHandler = null;
+
+        async function initializeApp() {
+            if (userRole === 'produccion') {
+                const regSidebarItem = document.querySelector('.sidebar-item[onclick*="registro"]');
+                if (regSidebarItem) regSidebarItem.style.display = 'none';
+                showSection('orders');
+            }
+
+            await loadFromSupabase();
+            await loadStaff();
+            renderTable();
+            renderJobboard();
+        }
+
+        let currentFilter = 'all';
+        let currentEditingIndex = null;
+
+        function save() {
+            persistToSupabase().catch(function (err) {
+                console.error('Supabase guardado:', err);
+            });
+        }
+
+        function toggleRow(id) {
+            const detail = document.getElementById(`detail-${id}`);
+            const arrow = document.getElementById(`arrow-${id}`);
+            if (detail) detail.classList.toggle('open');
+            if (arrow) arrow.classList.toggle('rotate-90');
+        }
+
+        // Dropdown Logic
+        function toggleActionsDropdown(e, idx) {
+            e.stopPropagation();
+            const targetMenu = document.getElementById(`actions-${idx}`);
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                if (m !== targetMenu) m.classList.remove('show');
+            });
+            if (targetMenu) targetMenu.classList.toggle('show');
+        }
+
+        // Close dropdowns when clicking outside
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+        });
+
+        function openUpdateModal(idx) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            currentEditingIndex = idx;
+            const o = orders[idx];
+            document.getElementById('update-modal-title').innerText = `Actualizar Orden - ${o.id}`;
+            document.getElementById('upd-date').value = o.date;
+            document.getElementById('upd-delivery-time').value = o.deliveryTime || '';
+            document.getElementById('upd-watchlist').checked = o.watchlist || false;
+            document.getElementById('modal-update-status').classList.remove('hidden');
+        }
+
+        function updateStatusDot(val) {
+            const dot = document.getElementById('status-color-dot');
+            const colors = {
+                ingresada: '#14b8a6',
+                diseno: '#f59e0b',
+                corte: '#f97316',
+                entregado: '#3b82f6',
+                cancelada: '#ef4444'
+            };
+            dot.style.backgroundColor = colors[val] || '#3b82f6';
+        }
+
+        function closeUpdateModal() {
+            document.getElementById('modal-update-status').classList.add('hidden');
+        }
+
+        let currentSummaryIndex = null;
+
+        function statusSummaryLabel(status) {
+            const map = {
+                ingresada: 'INGRESADA',
+                diseno: 'EN DISEÑO',
+                corte: 'EN CORTE',
+                entregado: 'ENTREGADO RECEPCIÓN',
+                cancelada: 'CANCELADA'
+            };
+            return map[status] || String(status || '').toUpperCase();
+        }
+
+        function paySummaryLabel(pay) {
+            const map = { pendiente: 'Pendiente', parcial: 'Parcial', pagada: 'Pagada', credito: 'Crédito al Cliente' };
+            return map[pay] || String(pay || '—');
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function openOrderDetailsModal(idx) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            const o = orders[idx];
+            if (!o) return;
+
+            document.getElementById('order-details-heading').textContent = o.id;
+            document.getElementById('order-details-sub').textContent = o.ref ? `Cotización: ${o.ref}` : '';
+
+            const grid = document.getElementById('order-details-grid');
+            grid.innerHTML = `
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Cliente</p>
+                    <p class="mt-0.5 text-sm text-slate-800 leading-snug">${escapeHtml(o.client)}</p>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Vendedor / responsable</p>
+                    <p class="mt-0.5 text-sm text-slate-800">${escapeHtml(o.seller || '—')}</p>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Estado de la orden</p>
+                    <div class="mt-1"><span class="badge badge-${o.status}">${statusSummaryLabel(o.status)}</span></div>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Estado de pago</p>
+                    <div class="mt-1"><span class="badge badge-${o.pay}">${paySummaryLabel(o.pay)}</span></div>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Fecha de venta</p>
+                    <p class="mt-0.5 text-sm text-slate-800">${escapeHtml(formatDate(o.createdDate || o.date) || '—')}</p>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Fecha de entrega</p>
+                    <p class="mt-0.5 text-sm font-semibold text-slate-900">${escapeHtml(formatDate(o.date) || '—')}</p>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-black uppercase tracking-wide">Hora de entrega</p>
+                    <p class="mt-0.5 text-sm font-semibold text-slate-900">${escapeHtml(o.deliveryTime || '—')}</p>
+                </div>
+                <div class="sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Seguimiento especial</p>
+                    <p class="mt-0.5 text-sm text-slate-800">${o.watchlist ? 'Sí' : 'No'}</p>
+                </div>
+            `;
+
+            const tbody = document.getElementById('order-details-products-tbody');
+            tbody.innerHTML = o.products.map((p, i) => `
+                <tr class="bg-white hover:bg-slate-50/80">
+                    <td class="px-3 py-2.5 align-top text-slate-400 font-medium">${i + 1}</td>
+                    <td class="px-3 py-2.5 align-top text-center tabular-nums text-slate-700">${escapeHtml(String(p.qty))}</td>
+                    <td class="px-3 py-2.5 align-top text-slate-600">${escapeHtml(p.dims)}</td>
+                    <td class="px-3 py-2.5 align-top">
+                        <div class="relative w-[60px] h-[60px] border border-slate-200 flex items-center justify-center overflow-hidden bg-white">
+                            ${p.image ? `<img src="${p.image}" ondblclick="openLargeImageFromPreview(this)" class="cursor-zoom-in" style="max-width: 100%; max-height: 100%; position: relative; z-index: 1;" title="Doble clic para ampliar">` : ''}
+                            <div class="detail-text-overlay absolute inset-0 flex items-center justify-center text-center font-bold text-[10px] text-blue-600 px-0.5 break-words pointer-events-none" style="z-index: 2; background: ${p.image ? 'rgba(255,255,255,0.4)' : 'transparent'}">${escapeHtml(p.text || '')}</div>
+                        </div>
+                    </td>
+                    <td class="px-3 py-2.5 align-top text-slate-700 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.note || '—')}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('order-details-product-notes').innerHTML = '';
+            document.getElementById('modal-order-details').classList.remove('hidden');
+        }
+
+        function openHistoryModal(idx) {
+            const o = orders[idx];
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            
+            if (!o.history || o.history.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 italic">No hay registros de cambios para esta orden.</p>';
+            } else {
+                // Se muestra en orden ascendente (primero los más antiguos)
+                o.history.forEach((entry, i) => {
+                    const date = new Date(entry.timestamp);
+                    const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const timeStr = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const isLatest = (i === o.history.length - 1);
+                    const div = document.createElement('div');
+                    div.className = 'relative pl-6 pb-6 border-l border-slate-200 last:border-0 last:pb-0';
+                    div.innerHTML = `
+                        <div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${isLatest ? 'bg-blue-600' : 'bg-slate-300'} border-2 border-white"></div>
+                        <p class="text-[11px] font-bold text-slate-800 uppercase leading-none mb-1">${statusSummaryLabel(entry.status)}</p>
+                        <p class="text-[11px] text-slate-500 font-normal">Responsable: <span class="font-bold text-slate-700">${escapeHtml(entry.responsible)}</span></p>
+                        <p class="text-[10px] text-black mt-1 font-medium">${dateStr} · ${timeStr}</p>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+            document.getElementById('modal-history').classList.remove('hidden');
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('modal-history').classList.add('hidden');
+        }
+
+        let nextStatusToApply = '';
+
+        function openChangeStatusModal(idx) {
+            currentEditingIndex = idx;
+            const o = orders[idx];
+            
+            const sequence = ['ingresada', 'diseno', 'corte', 'entregado'];
+            const displayNames = {
+                'ingresada': 'INGRESADA PRODUCCIÓN',
+                'diseno': 'EN DISEÑO',
+                'corte': 'EN CORTE / ARMADO',
+                'entregado': 'ENTREGADO RECEPCIÓN'
+            };
+            const labelPhases = {
+                'ingresada': 'PRODUCCIÓN',
+                'diseno': 'DISEÑO',
+                'corte': 'CORTE / ARMADO',
+                'entregado': 'RECEPCIÓN'
+            };
+
+            const currentIndex = sequence.indexOf(o.status);
+            if (currentIndex === -1 || currentIndex >= sequence.length - 1) {
+                if (o.status === 'entregado') {
+                    alert("La orden ya se encuentra en el estado final (Entregado).");
+                    return;
+                }
+                // Si es un estado desconocido o cancelado, reiniciamos a ingresada
+                nextStatusToApply = 'ingresada';
+            } else {
+                nextStatusToApply = sequence[currentIndex + 1];
+            }
+
+            document.getElementById('change-responsible-label').innerText = `RESPONSABLE DE ${labelPhases[nextStatusToApply]}`;
+            document.getElementById('change-responsible').value = '';
+            document.getElementById('modal-change-status').classList.remove('hidden');
+        }
+
+        function closeChangeStatusModal() {
+            document.getElementById('modal-change-status').classList.add('hidden');
+        }
+
+        function saveStatusChange() {
+            if (currentEditingIndex === null) return;
+            const responsible = document.getElementById('change-responsible').value.trim();
+            if (!responsible) {
+                alert("Por favor, ingrese el nombre del responsable.");
+                return;
+            }
+            const o = orders[currentEditingIndex];
+            o.status = nextStatusToApply;
+            o.lastResponsible = responsible;
+            
+            // Registrar en historial
+            if (!o.history) o.history = [];
+            o.history.push({
+                status: o.status,
+                responsible: responsible,
+                timestamp: new Date().toISOString()
+            });
+
+            save();
+            renderTable();
+            closeChangeStatusModal();
+        }
+
+        function closeOrderDetailsModal() {
+            document.getElementById('modal-order-details').classList.add('hidden');
+        }
+
+        function positionFloatingPanel(panelId, anchor, opts) {
+            const panel = document.getElementById(panelId);
+            panel.classList.remove('hidden');
+
+            const rect = anchor.getBoundingClientRect();
+            const margin = 10;
+            const pw = panel.offsetWidth;
+            const ph = panel.offsetHeight;
+            let top;
+            let left;
+
+            if (opts && opts.side) {
+                left = rect.right + margin;
+                top = rect.top;
+                if (left + pw > window.innerWidth - margin) {
+                    left = Math.max(margin, rect.left - pw - margin);
+                }
+                if (top + ph > window.innerHeight - margin) {
+                    top = Math.max(margin, window.innerHeight - ph - margin);
+                }
+                if (top < margin) top = margin;
+            } else {
+                const offsetX = 6;
+                top = rect.bottom + margin;
+                left = rect.left + offsetX;
+                if (top + ph > window.innerHeight - margin) {
+                    top = Math.max(margin, rect.top - ph - margin);
+                }
+                if (left + pw > window.innerWidth - margin) {
+                    left = Math.max(margin, window.innerWidth - pw - margin);
+                }
+                if (left < margin) left = margin;
+            }
+
+            panel.style.top = `${Math.round(top)}px`;
+            panel.style.left = `${Math.round(left)}px`;
+        }
+
+        function positionSummaryPopover(anchor) {
+            positionFloatingPanel('modal-order-summary', anchor);
+        }
+
+        function bindSummaryPopoverScroll() {
+            if (summaryScrollCleanup) summaryScrollCleanup();
+            if (!summaryAnchorEl) return;
+
+            const reposition = () => {
+                const panel = document.getElementById('modal-order-summary');
+                if (!summaryAnchorEl || !panel || panel.classList.contains('hidden')) return;
+                const r = summaryAnchorEl.getBoundingClientRect();
+                if (r.width < 2 && r.height < 2) return;
+                positionSummaryPopover(summaryAnchorEl);
+            };
+
+            window.addEventListener('scroll', reposition, true);
+            window.addEventListener('resize', reposition);
+            const tableWrap = document.querySelector('#jobboard-section .overflow-x-auto');
+            tableWrap?.addEventListener('scroll', reposition, true);
+
+            summaryScrollCleanup = () => {
+                window.removeEventListener('scroll', reposition, true);
+                window.removeEventListener('resize', reposition);
+                tableWrap?.removeEventListener('scroll', reposition, true);
+                summaryScrollCleanup = null;
+            };
+        }
+
+        function showOrderSummary(evt, idx) {
+            if (typeof evt === 'number') {
+                idx = evt;
+                evt = null;
+            }
+            if (evt && typeof evt.stopPropagation === 'function') evt.stopPropagation();
+
+            if (summaryOutsideClose) {
+                document.removeEventListener('click', summaryOutsideClose);
+                summaryOutsideClose = null;
+            }
+            if (summaryScrollCleanup) summaryScrollCleanup();
+            if (summaryEscapeHandler) {
+                document.removeEventListener('keydown', summaryEscapeHandler);
+                summaryEscapeHandler = null;
+            }
+
+            const anchor = evt && evt.currentTarget;
+            const fromHiddenParent = anchor && anchor.closest('#modal-jobboard-orders');
+
+            if (!fromHiddenParent) closeJobboardModal();
+
+            currentSummaryIndex = idx;
+            const o = orders[idx];
+            document.getElementById('summary-title').textContent = o.id;
+            document.getElementById('summary-client').textContent = o.client;
+            document.getElementById('summary-created').textContent = formatDate(o.createdDate || o.date) || '—';
+            const deliveryFmt = formatDate(o.date);
+            document.getElementById('summary-delivery-line').textContent = (deliveryFmt || '—') + (o.deliveryTime ? ' - ' + o.deliveryTime : '');
+
+            const badgeCont = document.getElementById('summary-status-badge');
+            badgeCont.innerHTML = `<span class="badge badge-${o.status}">${statusSummaryLabel(o.status)}</span>`;
+
+            if (anchor) {
+                summaryAnchorEl = anchor;
+                positionSummaryPopover(anchor);
+                if (!fromHiddenParent) bindSummaryPopoverScroll();
+                else summaryAnchorEl = null;
+            } else {
+                summaryAnchorEl = null;
+                const panel = document.getElementById('modal-order-summary');
+                panel.classList.remove('hidden');
+                panel.style.top = `${Math.round((window.innerHeight - panel.offsetHeight) / 2)}px`;
+                panel.style.left = `${Math.round((window.innerWidth - panel.offsetWidth) / 2)}px`;
+            }
+
+            if (fromHiddenParent) closeJobboardModal();
+
+            summaryEscapeHandler = (e) => {
+                if (e.key === 'Escape') closeSummaryModal();
+            };
+            document.addEventListener('keydown', summaryEscapeHandler);
+
+            setTimeout(() => {
+                summaryOutsideClose = (e) => {
+                    const panel = document.getElementById('modal-order-summary');
+                    if (panel && !panel.contains(e.target)) {
+                        document.removeEventListener('click', summaryOutsideClose);
+                        summaryOutsideClose = null;
+                        closeSummaryModal();
+                    }
+                };
+                document.addEventListener('click', summaryOutsideClose);
+            }, 0);
+        }
+
+        function openOrderDetailsFromJobboardSummary() {
+            const idx = currentSummaryIndex;
+            if (idx === null || idx < 0) return;
+            closeSummaryModal();
+            closeJobboardModal();
+            openOrderDetailsModal(idx);
+        }
+
+        function closeSummaryModal() {
+            const panel = document.getElementById('modal-order-summary');
+            panel.classList.add('hidden');
+            panel.style.top = '';
+            panel.style.left = '';
+            currentSummaryIndex = null;
+            summaryAnchorEl = null;
+            if (summaryOutsideClose) {
+                document.removeEventListener('click', summaryOutsideClose);
+                summaryOutsideClose = null;
+            }
+            if (summaryScrollCleanup) summaryScrollCleanup();
+            if (summaryEscapeHandler) {
+                document.removeEventListener('keydown', summaryEscapeHandler);
+                summaryEscapeHandler = null;
+            }
+        }
+
+        function bindJobboardPopoverScroll() {
+            if (jobboardScrollCleanup) jobboardScrollCleanup();
+            if (!jobboardAnchorEl) return;
+
+            const reposition = () => {
+                const panel = document.getElementById('modal-jobboard-orders');
+                if (!jobboardAnchorEl || !panel || panel.classList.contains('hidden')) return;
+                const r = jobboardAnchorEl.getBoundingClientRect();
+                if (r.width < 2 && r.height < 2) return;
+                positionFloatingPanel('modal-jobboard-orders', jobboardAnchorEl, { side: true });
+            };
+
+            window.addEventListener('scroll', reposition, true);
+            window.addEventListener('resize', reposition);
+            const tableWrap = document.querySelector('#jobboard-section .overflow-x-auto');
+            tableWrap?.addEventListener('scroll', reposition, true);
+
+            jobboardScrollCleanup = () => {
+                window.removeEventListener('scroll', reposition, true);
+                window.removeEventListener('resize', reposition);
+                tableWrap?.removeEventListener('scroll', reposition, true);
+                jobboardScrollCleanup = null;
+            };
+        }
+
+        function closeJobboardModal() {
+            const panel = document.getElementById('modal-jobboard-orders');
+            panel.classList.add('hidden');
+            panel.style.top = '';
+            panel.style.left = '';
+            currentJobboardModalData = null;
+            jobboardAnchorEl = null;
+            if (jobboardOutsideClose) {
+                document.removeEventListener('click', jobboardOutsideClose);
+                jobboardOutsideClose = null;
+            }
+            if (jobboardScrollCleanup) jobboardScrollCleanup();
+            if (jobboardEscapeHandler) {
+                document.removeEventListener('keydown', jobboardEscapeHandler);
+                jobboardEscapeHandler = null;
+            }
+        }
+
+        function openJobboardModal(evt, status, dateCol) {
+            if (evt && typeof evt.stopPropagation === 'function') evt.stopPropagation();
+
+            closeSummaryModal();
+
+            if (jobboardOutsideClose) {
+                document.removeEventListener('click', jobboardOutsideClose);
+                jobboardOutsideClose = null;
+            }
+            if (jobboardScrollCleanup) jobboardScrollCleanup();
+            if (jobboardEscapeHandler) {
+                document.removeEventListener('keydown', jobboardEscapeHandler);
+                jobboardEscapeHandler = null;
+            }
+
+            if (!currentJobboardModalData) return;
+            const orderIds = currentJobboardModalData;
+
+            document.getElementById('jobboard-modal-title').textContent = 'Órdenes restantes';
+            document.getElementById('jobboard-modal-subtitle').textContent = `${dateCol} · ${orderIds.length} en esta celda`;
+
+            const ordersList = document.getElementById('jobboard-orders-list');
+            ordersList.innerHTML = orderIds.map(id => {
+                const order = orders.find(o => o.id === id);
+                const orderIndex = orders.indexOf(order);
+                return `
+                    <div class="p-2 border border-slate-100 rounded-md bg-slate-50/50 hover:bg-slate-100 cursor-pointer transition-colors" onclick="event.stopPropagation(); showOrderSummary(event, ${orderIndex});">
+                        <div class="font-semibold text-slate-700 text-sm">${order.id}</div>
+                        <div class="text-[9px] text-slate-500 mt-0.5">${order.client}</div>
+                        <div class="text-[8px] text-slate-400 mt-1">Entreg: ${formatDate(order.date)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const anchor = evt && evt.currentTarget;
+            if (anchor) {
+                jobboardAnchorEl = anchor;
+                positionFloatingPanel('modal-jobboard-orders', anchor, { side: true });
+                bindJobboardPopoverScroll();
+            } else {
+                jobboardAnchorEl = null;
+                const p = document.getElementById('modal-jobboard-orders');
+                p.classList.remove('hidden');
+                p.style.top = `${Math.round((window.innerHeight - p.offsetHeight) / 2)}px`;
+                p.style.left = `${Math.round((window.innerWidth - p.offsetWidth) / 2)}px`;
+            }
+
+            jobboardEscapeHandler = (e) => {
+                if (e.key === 'Escape') closeJobboardModal();
+            };
+            document.addEventListener('keydown', jobboardEscapeHandler);
+
+            setTimeout(() => {
+                jobboardOutsideClose = (e) => {
+                    const panel = document.getElementById('modal-jobboard-orders');
+                    if (panel && !panel.contains(e.target)) {
+                        document.removeEventListener('click', jobboardOutsideClose);
+                        jobboardOutsideClose = null;
+                        closeJobboardModal();
+                    }
+                };
+                document.addEventListener('click', jobboardOutsideClose);
+            }, 0);
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('modal-delete-confirm').classList.add('hidden');
+        }
+
+        async function confirmDeleteOrder() {
+            if (currentEditingIndex !== null) {
+                const orderId = orders[currentEditingIndex].id;
+                try {
+                    await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`, {
+                        method: 'DELETE',
+                        headers: supabaseHeaders()
+                    });
+                    orders.splice(currentEditingIndex, 1);
+                    renderTable();
+                    closeDeleteModal();
+                } catch (e) {
+                    console.error(e);
+                    alert("Error al eliminar de la base de datos");
+                }
+            }
+        }
+
+        function saveStatusUpdate() {
+            if (currentEditingIndex === null) return;
+            
+            const o = orders[currentEditingIndex];
+            o.date = document.getElementById('upd-date').value;
+            o.deliveryTime = document.getElementById('upd-delivery-time').value;
+            o.watchlist = document.getElementById('upd-watchlist').checked;
+            
+            save();
+            renderTable();
+            closeUpdateModal(); // Desaparece al presionar el botón
+        }
+
+        function deleteOrder(idx) {
+            // Cerrar todos los dropdowns antes de abrir el modal
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+            
+            currentEditingIndex = idx;
+            const order = orders[idx];
+            document.getElementById('delete-order-id').textContent = order.id;
+            document.getElementById('modal-delete-confirm').classList.remove('hidden');
+        }
+
+        function setFilter(status, el) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            renderTable();
+        }
+
+        function downloadOrderPDF(idx, isPrint = false) {
+            const o = orders[idx];
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 0; padding: 30px; color: #000; }
+                        .header-table { width: 100%; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px; }
+                        .ot-num { font-size: 24px; font-weight: bold; }
+                        
+                        .info-section { width: 100%; margin-bottom: 25px; }
+                        .info-column { width: 48%; display: inline-block; vertical-align: top; }
+                        .info-block h3 { font-size: 11px; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 8px; text-transform: uppercase; }
+                        .info-line { font-size: 10.5px; margin-bottom: 4px; }
+                        
+                        .products-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        .products-table th { border: 1px solid #000; padding: 6px; font-size: 10px; background: #f0f0f0; text-transform: uppercase; }
+                        .products-table td { border: 1px solid #000; padding: 8px; font-size: 15px; vertical-align: middle; font-weight: bold; }
+                        
+                        .footer { margin-top: 40px; border-top: 1px solid #000; padding-top: 10px; padding-bottom: 20px; text-align: center; font-size: 9px; }
+                        .footer p { margin: 0; }
+                    </style>
+                </head>
+                <body>
+                    <table class="header-table">
+                        <tr>
+                            <td style="width: 70px;">
+                                <img src="https://i.ibb.co/mVKkMx05/speed-servvv-removebg-preview.png" crossorigin="anonymous" style="width: 60px;">
+                            </td>
+                            <td>
+                                <h1 style="margin:0; font-size: 20px;">SPEED SERVIC</h1>
+                                <p style="margin:0; font-size: 8px; text-transform: uppercase; letter-spacing: 1px;">Servicios Especializados</p>
+                            </td>
+                            <td style="text-align: right; vertical-align: top;">
+                                <p style="margin:0; font-size: 12px; font-weight: bold;">ORDEN DE TRABAJO</p>
+                                <p class="ot-num" style="margin:0;">${o.id}</p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="info-section">
+                        <div class="info-column">
+                            <div class="info-block">
+                                <h3>Detalles del Cliente</h3>
+                                <div class="info-line"><strong>Nombre:</strong> ${o.client}</div>
+                                <div class="info-line"><strong>Contacto:</strong> ${o.contact || '—'}</div>
+                                <div class="info-line"><strong>CEL:</strong> ${o.cel || '—'}</div>
+                            </div>
+                        </div>
+                        <div class="info-column" style="margin-left: 3%;">
+                            <div class="info-block">
+                                <h3>Detalles de la Orden</h3>
+                                <div class="info-line"><strong>Vendedor:</strong> ${o.seller || '—'}</div>
+                                <div class="info-line"><strong>Fecha Venta:</strong> ${formatDate(o.createdDate || o.date)}</div>
+                                <div class="info-line"><strong>Fecha Entrega:</strong> ${formatDate(o.date)}${o.deliveryTime ? ' - ' + o.deliveryTime : ''}</div>
+                                <div class="info-line"><strong>COT NRO:</strong> ${o.ref || '—'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>Detalles de Productos</h3>
+                        <table class="products-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">Cant.</th>
+                                    <th style="width: 15%;">Medida</th>
+                                    <th style="width: 25%;">Imagen</th>
+                                    <th>Instrucciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${o.products.map(p => `
+                                    <tr>
+                                        <td style="text-align: center;">${p.qty}</td>
+                                        <td style="text-align: center;">${p.dims}</td>
+                                        <td style="text-align: center;">
+                                            <div style="position: relative; width: 110px; height: 110px; margin: auto; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; overflow: hidden;">
+                                                ${p.image ? `<img src="${p.image}" style="max-width: 100%; max-height: 100%; position: relative; z-index: 1;">` : ''}
+                                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: bold; font-size: 14px; color: #2563eb; padding: 5px; word-break: break-all; z-index: 2; background: ${p.image ? 'rgba(255,255,255,0.4)' : 'transparent'};">${p.text || ''}</div>
+                                            </div>
+                                        </td>
+                                        <td>${p.note || '—'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="footer">
+                        <p><strong>SPEED SERVIC - Imprenta y Publicidad</strong></p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const opt = {
+                margin: 10,
+                filename: 'OT-' + o.id + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+            };
+            
+            if (isPrint) {
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = 'none';
+                document.body.appendChild(iframe);
+
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(htmlContent);
+                doc.close();
+
+                const waitForImage = (img) => {
+                    if (!img) return Promise.resolve();
+                    if (img.complete && img.naturalHeight > 0) return Promise.resolve();
+                    return new Promise(resolve => {
+                        const done = () => resolve();
+                        img.onload = done;
+                        img.onerror = done;
+                    });
+                };
+
+                let hasStartedPrint = false;
+                const checkAndPrint = () => {
+                    if (hasStartedPrint) return;
+                    hasStartedPrint = true;
+                    const images = Array.from(doc.querySelectorAll('img'));
+                    const promises = images.map(waitForImage);
+
+                    Promise.all(promises).then(() => {
+                        setTimeout(() => {
+                            const cleanup = () => {
+                                if (!iframe.parentNode) return;
+                                document.body.removeChild(iframe);
+                            };
+
+                            // En algunos navegadores, remover el iframe de inmediato corta el render del preview.
+                            iframe.contentWindow.onafterprint = cleanup;
+                            iframe.contentWindow.focus();
+                            iframe.contentWindow.print();
+                            setTimeout(cleanup, 3000);
+                        }, 700); // Pequeña espera extra para asegurar layout final en preview
+                    });
+                };
+
+                // Espera a que el documento del iframe esté listo antes de validar imágenes
+                iframe.onload = () => setTimeout(checkAndPrint, 200);
+                if (doc.readyState === 'complete') {
+                    setTimeout(checkAndPrint, 200);
+                }
+            } else {
+                html2pdf().set(opt).from(htmlContent).save();
+            }
+        }
+
+        function toggleTextInput(rowId) {
+            const row = document.getElementById(rowId);
+            const input = row.querySelector('.p-text-input');
+            input.classList.toggle('hidden');
+            if (!input.classList.contains('hidden')) input.focus();
+        }
+
+        function updateTextOverlay(rowId, val) {
+            const row = document.getElementById(rowId);
+            row.dataset.text = val;
+            const overlay = row.querySelector('.p-text-overlay');
+            overlay.textContent = val;
+            if (val) {
+                overlay.classList.remove('hidden');
+                const noImg = row.querySelector('.p-no-img');
+                if (noImg) noImg.classList.add('hidden');
+            } else {
+                overlay.classList.add('hidden');
+                const noImg = row.querySelector('.p-no-img');
+                if (noImg && !row.dataset.image) noImg.classList.remove('hidden');
+            }
+        }
+
+        function updateRowImagePreview(rowId, imgSrc) {
+            const row = document.getElementById(rowId);
+            row.dataset.image = imgSrc;
+            const preview = row.querySelector('.p-image-preview');
+            const noImg = preview.querySelector('.p-no-img');
+            const overlay = preview.querySelector('.p-text-overlay');
+            const oldImg = preview.querySelector('img');
+            if (oldImg) oldImg.remove();
+            if (noImg) noImg.classList.add('hidden');
+            if (imgSrc) {
+                const img = document.createElement('img');
+                img.src = imgSrc;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                preview.insertBefore(img, overlay);
+                overlay.style.background = 'rgba(255,255,255,0.4)';
+            } else {
+                overlay.style.background = 'transparent';
+                if (!row.dataset.text && noImg) noImg.classList.remove('hidden');
+            }
+        }
+
+        function addProductRow(name = "", dims = "", qty = "", note = "", image = "", text = "") {
+            const container = document.getElementById('products-container');
+            const rowId = 'prod-' + Date.now();
+            const row = document.createElement('div');
+            row.id = rowId;
+            row.className = "grid grid-cols-12 gap-2 items-start bg-slate-50 p-3 rounded-lg border border-slate-100 product-row";
+            row.dataset.image = image;
+            row.dataset.text = text;
+            row.innerHTML = `
+                <div class="col-span-2"><label class="text-[10px] font-semibold text-black uppercase">Cant.</label><input type="number" placeholder="1" class="modal-input p-qty nav-field" value="${qty}" required></div>
+                <div class="col-span-2"><label class="text-[10px] font-semibold text-black uppercase">Dimensiones</label><input type="text" placeholder="80x200cm" class="modal-input p-dims nav-field" value="${dims}" required></div>
+                <div class="col-span-2">
+                    <label class="text-[10px] font-semibold text-black uppercase">Imagen/Texto</label>
+                    <div class="flex flex-col gap-1 mt-1">
+                        <div class="flex items-center gap-1">
+                            <input type="file" accept="image/*" class="hidden p-image-file" onchange="handleImageUpload(event, '${rowId}')">
+                            <div class="p-image-preview drop-zone relative" onclick="document.querySelector('#' + '${rowId}' + ' .p-image-file').click()" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${rowId}')" style="width: 60px; height: 60px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; background: #f9f9f9; cursor: pointer; overflow: hidden;">
+                                ${image ? `<img src="${image}" style="max-width: 100%; max-height: 100%;">` : '<span class="p-no-img" style="font-size: 10px; color: #666; text-align: center;">Subir</span>'}
+                                <div class="p-text-overlay absolute inset-0 flex items-center justify-center pointer-events-none text-center font-bold text-[10px] text-blue-600 px-1 break-words ${text ? '' : 'hidden'}" style="background: ${image ? 'rgba(255,255,255,0.4)' : 'transparent'}">${escapeHtml(text)}</div>
+                            </div>
+                            <button type="button" onclick="toggleTextInput('${rowId}')" class="text-slate-400 hover:text-blue-600 shrink-0" title="Escribir texto">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                        </div>
+                        <input type="text" class="p-text-input hidden w-full text-[10px] border border-slate-200 rounded px-1 h-6" placeholder="Texto..." oninput="updateTextOverlay('${rowId}', this.value)" value="${escapeHtml(text)}">
+                    </div>
+                </div>
+                <div class="col-span-5"><label class="text-[10px] font-semibold text-black uppercase">Instrucciones</label><input type="text" placeholder="Detalles del trabajo o terminaciones..." class="modal-input p-note nav-field" value="${note}" required></div>
+                <div class="col-span-1 flex justify-end items-end pb-1 h-full"><button type="button" onclick="removeProductRow('${rowId}')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar producto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button></div>
+            `;
+            container.appendChild(row);
+            setupNavigation();
+        }
+
+        function removeProductRow(id) {
+            document.getElementById(id).remove();
+            setupNavigation();
+        }
+
+        function handleImageUpload(event, rowId) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    updateRowImagePreview(rowId, e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.style.borderColor = '#3b82f6';
+        }
+
+        function handleDrop(event, rowId) {
+            event.preventDefault();
+            event.currentTarget.style.borderColor = '#ccc';
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        updateRowImagePreview(rowId, e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        function showImageModal(rowId) {
+            const row = document.getElementById(rowId);
+            const imgSrc = row.dataset.image;
+            if (imgSrc) openLargeImage(imgSrc, row.dataset.text || '');
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+
+        function openLargeImageFromPreview(imageElement) {
+            const container = imageElement.closest('.relative');
+            const textOverlay = container ? container.querySelector('.detail-text-overlay') : null;
+            openLargeImage(imageElement.src, textOverlay ? textOverlay.textContent : '');
+        }
+
+        function openLargeImage(src, text = '') {
+            if (!src) return;
+            document.getElementById('image-modal-img').src = src;
+            const textLayer = document.getElementById('image-modal-text');
+            textLayer.textContent = text || '';
+            textLayer.style.background = text ? 'rgba(255,255,255,0.4)' : 'transparent';
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function setupNavigation() {
+            const fields = Array.from(document.querySelectorAll('.nav-field'));
+            fields.forEach((field, index) => {
+                field.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        // Si el campo está vacío, no hacer nada (no avanza)
+                        if (field.value.trim() === "") {
+                            e.preventDefault();
+                            return;
+                        }
+                        e.preventDefault();
+                        const currentForm = field.closest('form');
+                        const nextField = fields[index + 1];
+                        
+                        // Solo avanza si el siguiente campo pertenece al mismo formulario
+                        if (nextField && nextField.closest('form') === currentForm) {
+                            nextField.focus();
+                        } else if (currentForm) {
+                            if (currentForm.checkValidity()) currentForm.requestSubmit();
+                        }
+                    }
+                };
+            });
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return "";
+            const [year, month, day] = dateStr.split('-');
+            const d = new Date(year, month - 1, day);
+            return d.toLocaleDateString('es-ES', {day: '2-digit', month: 'short', year: 'numeric'});
+        }
+
+        function renderTable() {
+            const body = document.getElementById('orders-table-body');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            body.innerHTML = '';
+
+            const filtered = orders.filter(o => {
+                const textMatch = o.client.toLowerCase().includes(search) || o.id.toLowerCase().includes(search);
+                if (currentFilter === 'all') return textMatch;
+                if (currentFilter === 'watchlist') return textMatch && o.watchlist === true;
+                if (['pendiente', 'parcial', 'pagada', 'credito'].includes(currentFilter)) return textMatch && o.pay === currentFilter;
+                return textMatch && o.status === currentFilter;
+            });
+
+            document.getElementById('count-label').innerText = filtered.length;
+
+            filtered.forEach((o, idx) => {
+                const orderIdx = orders.indexOf(o);
+                const tr = document.createElement('tr');
+                tr.className = "table-row group cursor-pointer";
+                tr.onclick = (e) => { if (!e.target.closest('button')) toggleRow(idx); };
+                
+                tr.innerHTML = `
+                    <td class="text-center"><span id="arrow-${idx}" class="text-slate-300 inline-block transition-transform font-bold">❯</span></td>
+                    <td>
+                        <div class="flex items-center gap-1.5">
+                            ${o.watchlist ? '<span class="text-purple-500 text-[10px]">★</span>' : ''}
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-slate-800">${o.id}</span>
+                                <span class="text-[9px] text-slate-400 font-normal uppercase tracking-tight">${o.ref || ''}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="text-slate-700 uppercase tracking-tight truncate block max-w-[180px] font-normal">${o.client}</span></td>
+                    <td class="text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <span class="badge badge-${o.status} cursor-pointer select-none" onclick="event.stopPropagation(); openChangeStatusModal(${orderIdx})">${o.status}</span>
+                            <button onclick="event.stopPropagation(); openHistoryModal(${orderIdx})" class="text-slate-400 hover:text-blue-600 transition-colors p-1" title="Ver historial">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                        </div>
+                    </td>
+                    <td><span class="text-slate-500 font-normal">${formatDate(o.date)}${o.deliveryTime ? ' - ' + o.deliveryTime : ''}</span></td>
+                    <td class="text-center">
+                        <div class="flex flex-col items-center">
+                            <span class="badge badge-${o.pay}">${o.pay}</span>
+                            ${o.amountPaid && o.amountPaid !== "0,00" ? `<span class="text-[8px] text-slate-400">$${o.amountPaid}</span>` : ''}
+                        </div>
+                    </td>
+                    <td><span class="font-semibold text-black">${o.products.length} productos</span></td>
+                    <td><span class="text-slate-500 font-normal whitespace-nowrap">${formatDate(o.createdDate || o.date)}</span></td>
+                    <td class="text-center relative">
+                        <button onclick="toggleActionsDropdown(event, ${idx})" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 hover:text-slate-800 font-semibold transition-colors">⋯</button>
+                        <div id="actions-${idx}" class="dropdown-menu">
+                            <div class="dropdown-item" onclick="event.stopPropagation(); openOrderDetailsModal(${orderIdx})">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                <span>Ver detalles</span>
+                            </div>
+                            <div class="dropdown-item" onclick="event.stopPropagation(); openUpdateModal(${orderIdx})">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                <span>Editar</span>
+                            </div>
+                            <div class="dropdown-item" onclick="event.stopPropagation(); downloadOrderPDF(${orderIdx})">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>Descargar PDF</span>
+                            </div>
+                        ${userRole === 'gerencia' ? `
+                            <div class="dropdown-item text-red-500 hover:bg-red-50" onclick="event.stopPropagation(); deleteOrder(${orderIdx})">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                <span>Eliminar Orden</span>
+                            </div>
+                        ` : ''}
+                        </div>
+                    </td>
+                `;
+                body.appendChild(tr);
+
+                const detailTr = document.createElement('tr');
+                detailTr.id = `detail-${idx}`;
+                detailTr.className = "detail-row";
+                let prodListHtml = o.products.map(p => `
+                    <div class="product-card-container">
+                        <div>
+                            <p class="text-slate-900 text-[12px] font-bold mt-0.5">Cantidad: ${escapeHtml(String(p.qty))}</p>
+                            <p class="text-slate-900 text-[12px] flex items-center gap-1 mt-1 font-bold">${escapeHtml(p.dims)}</p>
+                        </div>
+                        <div class="flex justify-center items-center h-full">
+                            <div class="relative w-[50px] h-[50px] border border-slate-200 flex items-center justify-center overflow-hidden bg-white">
+                                ${p.image ? `<img src="${p.image}" ondblclick="openLargeImageFromPreview(this)" class="cursor-zoom-in" style="max-width: 100%; max-height: 100%; position: relative; z-index: 1;" title="Doble clic para ampliar">` : ''}
+                                <div class="detail-text-overlay absolute inset-0 flex items-center justify-center text-center font-bold text-[8px] text-blue-600 px-0.5 break-words pointer-events-none" style="z-index: 2; background: ${p.image ? 'rgba(255,255,255,0.4)' : 'transparent'}">${escapeHtml(p.text || '')}</div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50/50 p-3 rounded border border-slate-100 flex items-center">
+                            <p class="text-[10px] text-slate-600 font-normal leading-relaxed uppercase tracking-wide">${escapeHtml(p.note) || 'Sin descripción'}</p>
+                        </div>
+                    </div>
+                `).join('');
+                detailTr.innerHTML = `<td colspan="10" class="py-3 px-4 pl-3"><div class="orders-detail-products-wrap border-l-2 border-slate-100"><p class="text-[9px] font-semibold text-black uppercase tracking-widest mb-3">Productos de la orden (${o.products.length})</p>${prodListHtml}</div></td>`;
+                body.appendChild(detailTr);
+            });
+
+            // Update jobboard if visible
+            if (document.getElementById('jobboard-section').style.display === 'flex') {
+                renderJobboard();
+            }
+        }
+
+        function showClientSuggestions(val) {
+            const list = document.getElementById('client-suggestions');
+            if (!val || val.length < 1) {
+                list.classList.add('hidden');
+                return;
+            }
+
+            const matches = clients.filter(c => c.company.toLowerCase().includes(val.toLowerCase())).slice(0, 5);
+
+            if (matches.length === 0) {
+                list.classList.add('hidden');
+                return;
+            }
+
+            list.innerHTML = matches.map(c => `
+                <div class="px-3 py-2 hover:bg-slate-50 cursor-pointer text-xs border-b border-slate-50 last:border-0" onclick="selectClient('${escapeHtml(c.company)}', '${escapeHtml(c.contact)}', '${escapeHtml(c.phone)}')">
+                    <div class="font-bold text-slate-900">${escapeHtml(c.company)}</div>
+                    <div class="text-[10px] text-slate-500">${escapeHtml(c.contact)} - ${escapeHtml(c.phone)}</div>
+                </div>
+            `).join('');
+            list.classList.remove('hidden');
+        }
+
+        function selectClient(company, contact, phone) {
+            document.getElementById('ot-client').value = company;
+            if (contact) document.getElementById('ot-contact').value = contact;
+            if (phone) document.getElementById('ot-cel').value = phone;
+            document.getElementById('client-suggestions').classList.add('hidden');
+        }
+
+        function openModal() { 
+            document.getElementById('form-ot').reset();
+            document.getElementById('products-container').innerHTML = '';
+            addProductRow(); 
+            document.getElementById('ot-number-display').innerText = "OT-" + getNextOtNumber();
+            document.getElementById('modal-order').classList.remove('hidden'); 
+            setTimeout(() => document.getElementById('ot-cot').focus(), 100);
+        }
+
+        function closeModal() { 
+            document.getElementById('modal-order').classList.add('hidden'); 
+            document.getElementById('client-suggestions').classList.add('hidden');
+        }
+
+        function getNextOtNumber() {
+            let maxNum = 0;
+            orders.forEach(order => {
+                const match = order.id.match(/^OT-(\d+)$/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxNum) maxNum = num;
+                }
+            });
+            return maxNum + 1;
+        }
+
+        document.getElementById('form-ot').onsubmit = (e) => {
+            e.preventDefault();
+            if (!e.target.checkValidity()) return;
+
+            const prods = [];
+            document.querySelectorAll('.product-row').forEach(row => {
+                prods.push({
+                    name: "Servicio",
+                    qty: row.querySelector('.p-qty').value,
+                    dims: row.querySelector('.p-dims').value,
+                    note: row.querySelector('.p-note').value,
+                    image: row.dataset.image || '',
+                    text: row.dataset.text || ''
+                });
+            });
+
+            orders.unshift({
+                id: "OT-" + getNextOtNumber(),
+                ref: "COT-" + document.getElementById('ot-cot').value,
+                client: document.getElementById('ot-client').value,
+                contact: document.getElementById('ot-contact').value,
+                cel: document.getElementById('ot-cel').value,
+                products: prods,
+                seller: document.getElementById('ot-seller').value,
+                status: "ingresada",
+                date: document.getElementById('ot-delivery').value,
+                deliveryTime: document.getElementById('ot-delivery-time').value,
+                createdDate: new Date().toISOString().split('T')[0],
+                pay: document.getElementById('ot-pay-status').value,
+                watchlist: false,
+                amountPaid: "0,00",
+                history: [{
+                    status: "ingresada",
+                    responsible: document.getElementById('ot-seller').value,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+            save(); 
+            renderTable(); 
+            closeModal();
+        };
+
+        let isEditingClient = -1;
+
+        document.getElementById('form-client').onsubmit = (e) => {
+            e.preventDefault();
+            const newClient = {
+                company: document.getElementById('client-company').value,
+                rut: document.getElementById('client-rut').value,
+                contact: document.getElementById('client-name').value,
+                phone: document.getElementById('client-phone').value
+            };
+
+            if (isEditingClient >= 0) {
+                clients[isEditingClient] = newClient;
+                isEditingClient = -1;
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.textContent = "Guardar Cliente";
+                btn.classList.replace('bg-slate-800', 'bg-blue-600');
+                btn.classList.replace('hover:bg-black', 'hover:bg-blue-700');
+            } else {
+                clients.push(newClient);
+                // Desplazar automáticamente al final de la lista para ver el nuevo registro
+                setTimeout(() => {
+                    const container = document.querySelector('#registro-section .overflow-auto');
+                    if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                }, 100);
+            }
+
+            persistClientsToSupabase(newClient).catch(console.error);
+            renderClients();
+            e.target.reset();
+        };
+
+        function toggleClientActionsDropdown(e, idx) {
+            e.stopPropagation();
+            const targetMenu = document.getElementById(`client-actions-${idx}`);
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                if (m !== targetMenu) m.classList.remove('show');
+            });
+            if (targetMenu) targetMenu.classList.toggle('show');
+        }
+
+        function editClient(idx) {
+            isEditingClient = idx;
+            const c = clients[idx];
+            document.getElementById('client-company').value = c.company;
+            document.getElementById('client-rut').value = c.rut || '';
+            document.getElementById('client-name').value = c.contact || '';
+            document.getElementById('client-phone').value = c.phone || '';
+            
+            const btn = document.querySelector('#form-client button[type="submit"]');
+            btn.textContent = "Actualizar Cliente";
+            btn.classList.replace('bg-blue-600', 'bg-slate-800');
+            btn.classList.replace('hover:bg-blue-700', 'hover:bg-black');
+            document.getElementById('client-company').focus();
+        }
+
+        async function deleteClient(idx) {
+            if (!confirm(`¿Estás seguro de que deseas eliminar a ${clients[idx].company}?`)) return;
+            const clientName = clients[idx].company;
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/clients?nombre=eq.${clientName}`, { method: 'DELETE', headers: supabaseHeaders() });
+                clients.splice(idx, 1);
+                renderClients();
+            } catch (e) { console.error("Error al eliminar cliente:", e); }
+        }
+
+        function renderClients() {
+            const body = document.getElementById('clients-table-body');
+            if (!body) return;
+            body.innerHTML = clients.map((c, i) => `
+                <tr class="hover:bg-slate-50 transition-colors group">
+                    <td class="px-4 py-3 text-slate-500 font-medium">${i + 1}</td>
+                    <td class="px-4 py-3 text-slate-950 font-bold group-hover:text-blue-700 transition-colors">${escapeHtml(c.company)}</td>
+                    <td class="px-4 py-3 text-slate-800 font-medium">${escapeHtml(c.rut || '')}</td>
+                    <td class="px-4 py-3 text-slate-800 font-medium">${escapeHtml(c.contact)}</td>
+                    <td class="px-4 py-3 text-slate-800 font-medium tabular-nums">${escapeHtml(c.phone)}</td>
+                    <td class="px-4 py-3 text-center relative">
+                        <button onclick="toggleClientActionsDropdown(event, ${i})" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 hover:text-slate-800 font-semibold transition-colors">⋯</button>
+                        <div id="client-actions-${i}" class="dropdown-menu">
+                            <div class="dropdown-item" onclick="editClient(${i})">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                <span>Editar</span>
+                            </div>
+                            <div class="dropdown-item text-red-500 hover:bg-red-50" onclick="deleteClient(${i})">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                <span>Eliminar</span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function parseLocalYmd(dateStr) {
+            if (!dateStr) return null;
+            const p = dateStr.split('-');
+            if (p.length !== 3) return null;
+            const y = parseInt(p[0], 10);
+            const m = parseInt(p[1], 10);
+            const d = parseInt(p[2], 10);
+            if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
+            return new Date(y, m - 1, d);
+        }
+
+        function sameCalendarDay(a, b) {
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        }
+
+        /** Etiquetas de los 6 días después de mañana (hoy+2 … hoy+7); se renuevan cada día. */
+        function getRollingSlotLabels() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const labels = [];
+            for (let delta = 2; delta <= 7; delta++) {
+                const slot = new Date(today);
+                slot.setDate(slot.getDate() + delta);
+                labels.push(slot.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }));
+            }
+            return labels;
+        }
+
+        function getJobboardDateColumns() {
+            return ['Pasadas', 'Ayer', 'Hoy', 'Mañana', ...getRollingSlotLabels(), 'Sin fecha', 'Futuro'];
+        }
+
+        function renderJobboardThead() {
+            const tr = document.getElementById('jobboard-thead-row');
+            if (!tr) return;
+            const rolling = getRollingSlotLabels();
+            const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let html = '<th class="text-left">Estado</th>';
+            html += '<th class="text-left bg-[#fee2e2]">Pasadas</th>';
+            html += '<th class="text-left bg-[#fee2b8]">Ayer</th>';
+            html += '<th class="text-left bg-[#fef3c7]">Hoy</th>';
+            html += '<th class="text-left bg-[#dbeafe]">Mañana</th>';
+            rolling.forEach((label) => {
+                html += `<th class="text-left bg-[#dcfce7]">${esc(label)}</th>`;
+            });
+            html += '<th class="text-left bg-[#f8fafc]">Sin fecha</th>';
+            html += '<th class="text-left bg-[#ede9fe]">Futuro</th>';
+            tr.innerHTML = html;
+        }
+
+        function getDateCategory(dateStr) {
+            if (!dateStr) return 'Sin fecha';
+            const date = parseLocalYmd(dateStr);
+            if (!date) return 'Sin fecha';
+            date.setHours(0, 0, 0, 0);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (date < yesterday) return 'Pasadas';
+            if (sameCalendarDay(date, yesterday)) return 'Ayer';
+            if (sameCalendarDay(date, today)) return 'Hoy';
+            if (sameCalendarDay(date, tomorrow)) return 'Mañana';
+
+            const labels = getRollingSlotLabels();
+            for (let i = 0; i < 6; i++) {
+                const slot = new Date(today);
+                slot.setDate(slot.getDate() + 2 + i);
+                if (sameCalendarDay(date, slot)) return labels[i];
+            }
+            return 'Futuro';
+        }
+
+        function renderJobboard() {
+            renderJobboardThead();
+            const getDeliveryTime = (o) => (o && o.deliveryTime) ? o.deliveryTime : '';
+            
+            const tbody = document.querySelector('#jobboard-section tbody');
+            tbody.innerHTML = '';
+            const jobboardData = {
+                "Lista de seguimiento": {},
+                "INGRESADA": {},
+                "EN DISEÑO": {},
+                "EN CORTE": {},
+                "RECEPCIÓN DE ENTREGADO": {}
+            };
+            orders.forEach(order => {
+                let statusKey;
+                if (order.watchlist) {
+                    statusKey = "Lista de seguimiento";
+                } else {
+                    switch (order.status) {
+                        case "ingresada": statusKey = "INGRESADA"; break;
+                        case "diseno": statusKey = "EN DISEÑO"; break;
+                        case "corte": statusKey = "EN CORTE"; break;
+                        case "entregado": statusKey = "RECEPCIÓN DE ENTREGADO"; break;
+                        default: return;
+                    }
+                }
+                const dateCat = getDateCategory(order.date);
+                if (!jobboardData[statusKey][dateCat]) {
+                    jobboardData[statusKey][dateCat] = [];
+                }
+                jobboardData[statusKey][dateCat].push(order.id);
+            });
+            const statusOrder = ["Lista de seguimiento", "INGRESADA", "EN DISEÑO", "EN CORTE", "RECEPCIÓN DE ENTREGADO"];
+            const dateColumns = getJobboardDateColumns();
+            statusOrder.forEach(status => {
+                const tr = document.createElement('tr');
+                const tdStatus = document.createElement('td');
+                const chipClass = status === "Lista de seguimiento" ? "purple" :
+                                  status === "INGRESADA" ? "green" :
+                                  status === "EN DISEÑO" ? "amber" :
+                                  status === "EN CORTE" ? "orange" :
+                                  "blue";
+                tdStatus.className = 'jobboard-status-cell';
+                tdStatus.innerHTML = `<span class="jobboard-chip ${chipClass}">${status}</span>`;
+                tr.appendChild(tdStatus);
+                dateColumns.forEach(dateCol => {
+                    const td = document.createElement('td');
+                    const ordersInCell = jobboardData[status][dateCol] || [];
+                    if (ordersInCell.length > 0) {
+                        const firstOrder = orders.find(o => o.id === ordersInCell[0]);
+                        const firstIdx = orders.indexOf(firstOrder);
+                        
+                        const orderChipClass = 'jobboard-order-chip inline-flex flex-col items-center justify-center min-w-[80px] h-12 px-3 rounded border border-slate-400 bg-white text-slate-950 font-bold cursor-pointer hover:bg-slate-100 transition-colors shadow-md';
+                        const timeClass = 'text-[10px] text-slate-800 font-extrabold leading-none mt-0.5';
+
+                        if (ordersInCell.length === 1) {
+                            td.innerHTML = `
+                                <div onclick="showOrderSummary(event, ${firstIdx})" class="${orderChipClass}">
+                                    <span>${ordersInCell[0]}</span>
+                                    <span class="${timeClass}">${getDeliveryTime(firstOrder)}</span>
+                                </div>`;
+                        } else if (ordersInCell.length === 2) {
+                            const secondOrder = orders.find(o => o.id === ordersInCell[1]);
+                            const secondIdx = orders.indexOf(secondOrder);
+                            td.innerHTML = `
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <div onclick="showOrderSummary(event, ${firstIdx})" class="${orderChipClass}">
+                                        <span>${ordersInCell[0]}</span>
+                                        <span class="${timeClass}">${getDeliveryTime(firstOrder)}</span>
+                                    </div>
+                                    <div onclick="showOrderSummary(event, ${secondIdx})" class="${orderChipClass}">
+                                        <span>${ordersInCell[1]}</span>
+                                        <span class="${timeClass}">${getDeliveryTime(secondOrder)}</span>
+                                    </div>
+                                </div>`;
+                        } else {
+                            const secondOrder = orders.find(o => o.id === ordersInCell[1]);
+                            const secondIdx = orders.indexOf(secondOrder);
+                            const restIds = ordersInCell.slice(2);
+                            const nRest = restIds.length;
+                            td.innerHTML = `
+                                <div class="flex items-center gap-2.5 flex-wrap">
+                                    <div onclick="showOrderSummary(event, ${firstIdx})" class="${orderChipClass}">
+                                        <span>${ordersInCell[0]}</span>
+                                        <span class="${timeClass}">${getDeliveryTime(firstOrder)}</span>
+                                    </div>
+                                    <div onclick="showOrderSummary(event, ${secondIdx})" class="${orderChipClass}">
+                                        <span>${ordersInCell[1]}</span>
+                                        <span class="${timeClass}">${getDeliveryTime(secondOrder)}</span>
+                                    </div>
+                                    <button type="button" onclick="event.stopPropagation(); currentJobboardModalData = ${JSON.stringify(restIds).replace(/"/g, '&quot;')}; openJobboardModal(event, ${JSON.stringify(status)}, ${JSON.stringify(dateCol)})" class="jobboard-more-btn inline-flex items-center justify-center h-12 min-w-[2.5rem] px-2 rounded border border-slate-400 bg-white text-slate-950 font-bold hover:bg-slate-100 transition-colors shadow-md" title="Ver ${nRest} orden(es) restante(s) al costado">
+                                        +${nRest}
+                                    </button>
+                                </div>`;
+                        }
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showSection(section) {
+            const registroSec = document.getElementById('registro-section');
+            const ordersSec = document.getElementById('orders-section');
+            const jobboardSec = document.getElementById('jobboard-section');
+            const headerTitle = document.querySelector('header h1');
+            const headerDesc = document.querySelector('header p');
+            const newOtBtn = document.querySelector('header button');
+
+            if (section === 'registro' && userRole === 'produccion') return;
+
+            if (section === 'registro') {
+                registroSec.style.display = 'flex';
+                ordersSec.style.display = 'none';
+                jobboardSec.style.display = 'none';
+                headerTitle.textContent = 'Clientes de Speed Servic';
+                headerDesc.textContent = 'Clientes y contactos';
+                newOtBtn.style.display = 'none';
+            } else if (section === 'orders') {
+                registroSec.style.display = 'none';
+                ordersSec.style.display = 'flex';
+                jobboardSec.style.display = 'none';
+                headerTitle.textContent = 'Órdenes de Trabajo';
+                headerDesc.textContent = 'Gestión de producción y flujo comercial.';
+                newOtBtn.style.display = 'block';
+            } else if (section === 'jobboard') {
+                registroSec.style.display = 'none';
+                ordersSec.style.display = 'none';
+                jobboardSec.style.display = 'flex';
+                headerTitle.textContent = 'Bolsa de Trabajo';
+                headerDesc.textContent = 'Tablero de seguimiento de órdenes por estado y fecha de entrega.';
+                newOtBtn.style.display = 'none';
+                renderJobboard();
+            }
+
+            // Update active sidebar (sin depender del event global)
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            const sidebarItems = document.querySelectorAll('nav.flex-1.px-3 .sidebar-item');
+            if (section === 'registro') sidebarItems[0]?.classList.add('active');
+            else if (section === 'orders') sidebarItems[1]?.classList.add('active');
+            else if (section === 'jobboard') sidebarItems[2]?.classList.add('active');
+        }
+
+        function logout() {
+            sessionStorage.removeItem('userRole');
+            localStorage.removeItem('userRole'); // Limpieza de sesiones antiguas persistentes
+            window.location.href = 'index.html';
+        }
+
+        window.onload = function () {
+            initializeApp().then(function () {
+                setupNavigation();
+            });
+        };
+    </script>
+
+    <!-- Modal para imagen grande -->
+    <div id="image-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-[110] flex items-center justify-center p-4">
+        <div class="relative max-w-full max-h-full flex items-center justify-center">
+            <img id="image-modal-img" class="max-w-full max-h-full">
+            <div id="image-modal-text" class="absolute inset-0 flex items-center justify-center text-center font-bold text-blue-600 px-4 break-words pointer-events-none" style="background: transparent;"></div>
+        </div>
+        <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300">&times;</button>
+    </div>
+
+    <datalist id="staff-list"></datalist>
+</body>
+</html>

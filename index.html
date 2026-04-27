@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Servic - Sistema de Imprenta</title>
+    <!-- Importación de fuente para el logo y cuerpo -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #020005;
+            --accent-purple: #7028e4;
+            --accent-blue: #4facfe;
+            --text-main: #ffffff;
+            --text-muted: #a0a0c0;
+            --error: #ff4d4d;
+            --success: #00ff88;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            color: var(--text-main);
+            overflow: hidden;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        /* Lado de Marca (Izquierdo) */
+        .brand-side {
+            flex: 1.55;
+            position: relative;
+            background-image: url('https://img.freepik.com/foto-gratis/exito-empresarial-tecnologia-equipos-modernos-generados-ia_188544-18726.jpg?semt=ais_hybrid&w=1200&q=80');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 80px;
+        }
+
+        .brand-side::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to top, rgba(2, 0, 5, 0.9) 0%, rgba(2, 0, 5, 0.2) 100%);
+            z-index: 1;
+        }
+
+        .logo-area {
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-area h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            letter-spacing: 6px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(79, 172, 254, 0.9);
+            margin-bottom: 15px;
+        }
+
+        .logo-area span {
+            color: var(--accent-blue);
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            font-weight: bold;
+        }
+
+        /* Lado de Formulario (Derecho) */
+        .form-side {
+            flex: 0.45;
+            position: relative;
+            padding: 20px 40px; /* Reducido el padding superior */
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centrado horizontal */
+            background: var(--bg-dark);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: Arial, Helvetica, sans-serif;
+            overflow-y: auto; /* Por si el contenido es mucho en pantallas bajas */
+        }
+
+        /* Logo en la parte superior */
+        .company-logo-header {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        .company-logo-header img {
+            max-width: 180px;
+            height: auto;
+            filter: drop-shadow(0 0 15px rgba(79, 172, 254, 0.25));
+        }
+
+        .form-content {
+            position: relative;
+            z-index: 1;
+            max-width: 320px;
+            width: 100%;
+            /* Eliminado el flex-grow y justify-center para que no se centre verticalmente */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-header h3 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            font-weight: normal;
+            letter-spacing: -1px;
+        }
+
+        .form-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            font-weight: normal;
+        }
+
+        /* Selector de Rol */
+        .role-selector {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .role-option {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            color: var(--text-muted);
+        }
+
+        .role-option.active {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: white;
+        }
+
+        /* Campos de Entrada */
+        .input-box {
+            margin-bottom: 20px;
+        }
+
+        .input-box.hidden {
+            display: none;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 0.75rem;
+            margin-bottom: 8px;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            outline: none;
+            font-size: 1rem;
+            font-family: Arial, sans-serif;
+            font-weight: 300;
+        }
+
+        .input-field:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(to right, var(--accent-purple), var(--accent-blue));
+            color: white;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        .submit-btn:hover {
+            filter: brightness(1.2);
+            transform: translateY(-2px);
+        }
+
+        .feedback-msg {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 24px;
+            font-weight: 300;
+        }
+
+        @media (max-width: 1024px) {
+            body { flex-direction: column; overflow-y: auto; }
+            .brand-side { height: 20vh; padding: 30px; flex: none; }
+            .form-side { flex: none; padding: 20px; min-height: 80vh; border-left: none; }
+            .logo-area h2 { font-size: 1.8rem; }
+            .company-logo-header { margin-bottom: 15px; padding-top: 5px; }
+            .company-logo-header img { max-width: 110px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand-side">
+        <div class="logo-area">
+            <h2>SPEED SERVIC</h2>
+            <span>Gestión de Órdenes de Trabajo</span>
+        </div>
+    </div>
+
+    <div class="form-side">
+        <!-- Logo en la parte superior -->
+        <div class="company-logo-header">
+            <img src="https://i.ibb.co/mVKkMx05/speed-servvv-removebg-preview.png" alt="Logo de Speed Servic">
+        </div>
+
+        <div class="form-content">
+            <div class="form-header">
+                <h3>Acceso</h3>
+                <p id="instruction-text">Registro de operaciones de Speed Servic</p>
+            </div>
+
+            <div class="role-selector">
+                <div id="opt-prod" class="role-option active" onclick="selectRole('produccion')">PROD</div>
+                <div id="opt-ger" class="role-option" onclick="selectRole('gerencia')">GER</div>
+            </div>
+
+            <div id="password-container" class="input-box hidden">
+                <label class="input-label">Contraseña</label>
+                <input type="password" id="pass-field" class="input-field" placeholder="••••••••">
+            </div>
+
+            <button class="submit-btn" onclick="handleLogin()">Iniciar Sistema</button>
+            <div id="msg-box" class="feedback-msg"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentRole = 'produccion';
+        const MASTER_KEY = "SILVESTRE";
+
+        function selectRole(role) {
+            currentRole = role;
+            document.getElementById('opt-prod').classList.toggle('active', role === 'produccion');
+            document.getElementById('opt-ger').classList.toggle('active', role === 'gerencia');
+            
+            const passContainer = document.getElementById('password-container');
+            const instruction = document.getElementById('instruction-text');
+            const msgBox = document.getElementById('msg-box');
+            
+            msgBox.innerHTML = "";
+            document.getElementById('pass-field').value = "";
+            
+            if (role === 'produccion') {
+                passContainer.classList.add('hidden');
+                instruction.innerText = "Registro de operaciones de Speed Servic";
+            } else {
+                passContainer.classList.remove('hidden');
+                instruction.innerText = "Acceso de Gerencia.";
+                document.getElementById('pass-field').focus();
+            }
+        }
+
+        function handleLogin() {
+            const msgBox = document.getElementById('msg-box');
+            
+            if (currentRole === 'produccion') {
+                sessionStorage.setItem('userRole', 'produccion');
+                window.location.href = 'inicio.html';
+            } else {
+                const passInput = document.getElementById('pass-field').value;
+                
+                if (passInput === MASTER_KEY) {
+                    sessionStorage.setItem('userRole', 'gerencia');
+                    window.location.href = 'inicio.html';
+                } else if (passInput === "") {
+                    msgBox.style.color = "var(--text-muted)";
+                    msgBox.innerHTML = "Por favor, ingrese la contraseña.";
+                } else {
+                    msgBox.style.color = "var(--error)";
+                    msgBox.innerHTML = "Contraseña incorrecta.";
+                }
+            }
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleLogin();
+        });
+    </script>
+</body>
+</html>
